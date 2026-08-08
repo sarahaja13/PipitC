@@ -91,7 +91,7 @@ input:focus{border-color:var(--gold)}
       <button id="next">Berikutnya →</button>
     </div>
     <div class="thumbs" id="thumbs"></div>
-    <div class="hint">Geser kiri/kanan di gambar · tombol ← → di keyboard · ⇩ PDF untuk simpan sebagai PDF</div>
+    <div class="hint">Geser kiri/kanan di gambar · tombol ← → di keyboard · ⇩ PDF untuk download 12 halaman</div>
   </main>
 </div>
 
@@ -147,38 +147,44 @@ document.addEventListener("keydown",e=>{
  if(e.key==="ArrowLeft")show(current-1);
  if(e.key==="ArrowRight" || e.key===" "){e.preventDefault();show(current+1)}
 });
-document.getElementById("pdfBtn").onclick=()=>{
-  const pages = Array.from({length: TOTAL}, (_,i)=>`assets/page-${String(i+1).padStart(2,"0")}.png`);
-  const w = window.open("", "_blank");
-  if(!w){ alert("Popup diblokir browser. Izinkan popup untuk membuat PDF."); return; }
-
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8">
-  <title>Love Reading — Kusniyatin × Firdaus</title>
-  <style>
-    @page{size:A4 portrait;margin:0}
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:#000}
-    .sheet{width:210mm;height:297mm;display:flex;align-items:center;justify-content:center;page-break-after:always;break-after:page;background:#000}
-    .sheet:last-child{page-break-after:auto;break-after:auto}
-    img{width:100%;height:100%;object-fit:contain;display:block}
-    @media print{.sheet{break-after:page}.sheet:last-child{break-after:auto}}
-  </style></head><body>`);
-
-  pages.forEach((src,i)=>{
-    w.document.write(`<div class="sheet"><img src="${src}" alt="Love Reading halaman ${i+1}"></div>`);
-  });
-
-  w.document.write(`</body></html>`);
-  w.document.close();
-  w.focus();
-
-  // Menunggu gambar selesai dimuat sebelum membuka dialog PDF.
-  const imgs = [...w.document.images];
-  Promise.all(imgs.map(img => img.complete ? Promise.resolve() :
-    new Promise(resolve => { img.onload=img.onerror=resolve; })))
-    .then(()=>setTimeout(()=>w.print(),300));
+document.getElementById("pdfBtn").onclick=async()=>{
+  const btn=document.getElementById("pdfBtn");
+  const original=btn.textContent;
+  btn.disabled=true;
+  btn.textContent="Membuat PDF…";
+  try{
+    if(!window.jspdf){
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      document.head.appendChild(s);
+      await new Promise((resolve,reject)=>{s.onload=resolve;s.onerror=reject});
+    }
+    const {jsPDF}=window.jspdf;
+    const images=[];
+    for(let i=1;i<=TOTAL;i++){
+      const im=new Image();
+      im.src=`assets/page-${String(i).padStart(2,"0")}.png`;
+      await new Promise((resolve,reject)=>{im.onload=resolve;im.onerror=reject});
+      images.push(im);
+    }
+    const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});
+    const PW=210, PH=297;
+    images.forEach((im,i)=>{
+      if(i>0) pdf.addPage("a4","portrait");
+      const ratio=im.naturalWidth/im.naturalHeight;
+      let w=PW, h=PW/ratio;
+      if(h>PH){h=PH;w=PH*ratio}
+      pdf.addImage(im,"PNG",(PW-w)/2,(PH-h)/2,w,h,undefined,"FAST");
+    });
+    pdf.save("Love_Reading_Kusniyatin_Firdaus.pdf");
+  }catch(e){
+    console.error(e);
+    alert("PDF gagal dibuat. Pastikan internet tersedia saat pertama kali menekan tombol PDF.");
+  }finally{
+    btn.disabled=false;
+    btn.textContent=original;
+  }
 };
-
 document.getElementById("fs").onclick=()=>{
  const el=document.documentElement;
  if(!document.fullscreenElement) el.requestFullscreen?.(); else document.exitFullscreen?.();
