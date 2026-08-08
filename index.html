@@ -28,7 +28,8 @@ input:focus{border-color:var(--gold)}
 .top{position:sticky;top:0;z-index:20;backdrop-filter:blur(16px);background:rgba(6,5,4,.78);border-bottom:1px solid rgba(201,155,87,.22)}
 .bar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1100px;margin:auto;padding:0 14px}
 .brand{color:var(--gold2);letter-spacing:.12em;font-size:12px;text-transform:uppercase;white-space:nowrap}
-.controls{display:flex;gap:7px}
+.controls{display:flex;gap:7px;align-items:center}
+.pdf-btn{height:38px;padding:0 12px;border:1px solid var(--gold);border-radius:11px;background:linear-gradient(180deg,#2a1d12,#17100c);color:var(--gold2);cursor:pointer;font-size:12px}
 .icon-btn{width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:#100c09;color:var(--gold2);cursor:pointer}
 .main{max-width:1100px;margin:auto;padding:22px 12px 80px}
 .viewer{position:relative;display:flex;justify-content:center;min-height:60vh}
@@ -70,6 +71,7 @@ input:focus{border-color:var(--gold)}
     <div class="bar">
       <div class="brand">Tarot Sarah · Love Reading</div>
       <div class="controls">
+        <button class="pdf-btn" id="pdfBtn" title="Download PDF">⇩ PDF</button>
         <button class="icon-btn" id="fs" title="Fullscreen">⛶</button>
         <button class="icon-btn" id="lockBtn" title="Kunci kembali">⌕</button>
       </div>
@@ -89,7 +91,7 @@ input:focus{border-color:var(--gold)}
       <button id="next">Berikutnya →</button>
     </div>
     <div class="thumbs" id="thumbs"></div>
-    <div class="hint">Geser kiri/kanan di gambar · tombol ← → di keyboard · ⛶ untuk fullscreen</div>
+    <div class="hint">Geser kiri/kanan di gambar · tombol ← → di keyboard · ⇩ PDF untuk simpan sebagai PDF</div>
   </main>
 </div>
 
@@ -145,6 +147,38 @@ document.addEventListener("keydown",e=>{
  if(e.key==="ArrowLeft")show(current-1);
  if(e.key==="ArrowRight" || e.key===" "){e.preventDefault();show(current+1)}
 });
+document.getElementById("pdfBtn").onclick=()=>{
+  const pages = Array.from({length: TOTAL}, (_,i)=>`assets/page-${String(i+1).padStart(2,"0")}.png`);
+  const w = window.open("", "_blank");
+  if(!w){ alert("Popup diblokir browser. Izinkan popup untuk membuat PDF."); return; }
+
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+  <title>Love Reading — Kusniyatin × Firdaus</title>
+  <style>
+    @page{size:A4 portrait;margin:0}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#000}
+    .sheet{width:210mm;height:297mm;display:flex;align-items:center;justify-content:center;page-break-after:always;break-after:page;background:#000}
+    .sheet:last-child{page-break-after:auto;break-after:auto}
+    img{width:100%;height:100%;object-fit:contain;display:block}
+    @media print{.sheet{break-after:page}.sheet:last-child{break-after:auto}}
+  </style></head><body>`);
+
+  pages.forEach((src,i)=>{
+    w.document.write(`<div class="sheet"><img src="${src}" alt="Love Reading halaman ${i+1}"></div>`);
+  });
+
+  w.document.write(`</body></html>`);
+  w.document.close();
+  w.focus();
+
+  // Menunggu gambar selesai dimuat sebelum membuka dialog PDF.
+  const imgs = [...w.document.images];
+  Promise.all(imgs.map(img => img.complete ? Promise.resolve() :
+    new Promise(resolve => { img.onload=img.onerror=resolve; })))
+    .then(()=>setTimeout(()=>w.print(),300));
+};
+
 document.getElementById("fs").onclick=()=>{
  const el=document.documentElement;
  if(!document.fullscreenElement) el.requestFullscreen?.(); else document.exitFullscreen?.();
